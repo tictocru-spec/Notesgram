@@ -26,7 +26,7 @@ export default async function Home() {
       .eq('user_id', user.id);
 
     if (participantData) {
-      conversations = participantData
+      let mappedConversations = participantData
         .map((p: any) => p.conversations)
         .filter(Boolean)
         .map((conv: any) => {
@@ -42,6 +42,26 @@ export default async function Home() {
         .sort((a: any, b: any) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
+
+      conversations = await Promise.all(
+        mappedConversations.map(async (conv) => {
+          const { data: parts } = await supabase
+            .from('participants')
+            .select('user_id')
+            .eq('conversation_id', conv.id);
+          
+          const other = parts?.find((p: any) => p.user_id !== user.id);
+          
+          if (other) {
+            const { data: email } = await supabase
+              .rpc('get_user_email_by_id', { user_id: other.user_id });
+            if (email && typeof email === 'string') {
+              return { ...conv, name: email };
+            }
+          }
+          return conv;
+        })
+      );
     }
   }
 
