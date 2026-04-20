@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase-server';
-import { ConversationItem } from '@/components/ConversationItem';
 import { NewConversationModal } from '@/components/NewConversationModal';
+import { ConversationsList } from '@/components/ConversationsList';
 
 export default async function Home() {
   const supabase = await createClient();
@@ -52,23 +52,7 @@ export default async function Home() {
         {user && <NewConversationModal userId={user.id} />}
       </div>
 
-      <div className="bg-white dark:bg-[#1C1C1E] rounded-[10px] overflow-hidden shadow-sm">
-        {conversations.length > 0 ? (
-          conversations.map((conv) => (
-            <ConversationItem
-              key={conv.id}
-              id={conv.id}
-              name={conv.name || 'Unknown'}
-              previewMessage={conv.previewMessage}
-              timestamp={conv.timestamp}
-            />
-          ))
-        ) : (
-          <div className="p-8 text-center text-[#8E8E93]">
-            No conversations yet
-          </div>
-        )}
-      </div>
+      <ConversationsList initialConversations={conversations} />
     </div>
   );
 }
