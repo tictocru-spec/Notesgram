@@ -3,29 +3,37 @@ interface MessageBubbleProps {
   isSent: boolean;
   timestamp: string;
   showTimestamp?: boolean;
+  senderLabel: string;
+  showSender?: boolean;
 }
 
-export function MessageBubble({ content, isSent, timestamp, showTimestamp }: MessageBubbleProps) {
+export function MessageBubble({ content, isSent, timestamp, showTimestamp, senderLabel, showSender }: MessageBubbleProps) {
   const displayTime = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="flex flex-col w-full mb-2">
+    <div className="flex flex-col w-full mb-1">
       {showTimestamp && (
-        <div className="text-center text-[12px] text-[#8E8E93] my-4">
+        <div className="text-center text-[12px] text-[#8E8E93] mt-5 mb-3 font-medium">
           {displayTime}
         </div>
       )}
-      <div className={`flex w-full ${isSent ? 'justify-end' : 'justify-start'}`}>
-        <div
-          className={`max-w-[75%] px-[16px] py-[10px] rounded-[18px] text-[17px] leading-[22px] ${
-            isSent
-              ? 'bg-[#FFD60A] text-black'
-              : 'bg-[#F2F2F7] dark:bg-[#1C1C1E] text-black dark:text-white'
-          }`}
-          style={{ wordBreak: 'break-word' }}
-        >
-          {content}
+      
+      {showSender && (
+        <div className="text-[12px] text-[#8E8E93] mt-2 mb-0 px-1 font-medium">
+          {senderLabel}
         </div>
+      )}
+
+      {/* No bubble shapes, just left-aligned text lines */}
+      <div 
+        className={`px-1 text-[17px] leading-[28px] ${
+          isSent 
+            ? 'text-[#1A1A1A] dark:text-white' 
+            : 'text-[#FFD60A]'
+        }`}
+        style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+      >
+        {content}
       </div>
     </div>
   );
