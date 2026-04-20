@@ -28,6 +28,12 @@ export function ChatClient({ initialMessages, conversationId, userId, otherUserN
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
+  // GIF Picker State
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [gifSearch, setGifSearch] = useState('');
+  const [gifs, setGifs] = useState<any[]>([]);
+  const [isGifsLoading, setIsGifsLoading] = useState(false);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -75,7 +81,38 @@ export function ChatClient({ initialMessages, conversationId, userId, otherUserN
     };
   }, [conversationId, supabase, userId]);
 
-  const handleSend = async () => {
+  // Fetch GIFs Effect (debounced 500ms)
+  useEffect(() => {
+    if (!showGifPicker) return;
+
+    const fetchGifs = async () => {
+      setIsGifsLoading(true);
+      try {
+        const apiKey = process.env.NEXT_PUBLIC_GIPHY_API_KEY || '';
+        const endpoint = gifSearch.trim()
+          ? `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(gifSearch)}&limit=20&rating=g`
+          : `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=20&rating=g`;
+
+        const res = await fetch(endpoint);
+        const data = await res.json();
+        if (data.data) {
+          setGifs(data.data);
+        }
+      } catch (err) {
+        console.error('Error fetching GIFs:', err);
+      } finally {
+        setIsGifsLoading(false);
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      fetchGifs();
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [gifSearch, showGifPicker]);
+
+  const handleSendText = async () => {
     if (!inputText.trim()) return;
 
     const content = inputText;
@@ -92,10 +129,24 @@ export function ChatClient({ initialMessages, conversationId, userId, otherUserN
     }
   };
 
+  const handleSendGif = async (url: string) => {
+    setShowGifPicker(false);
+    
+    const { error } = await supabase.from('messages').insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      content: `giphy:${url}`,
+    });
+
+    if (error) {
+      console.error('Error sending gif:', error);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleSend();
+      handleSendText();
     }
   };
 
@@ -186,11 +237,50 @@ export function ChatClient({ initialMessages, conversationId, userId, otherUserN
         </div>
       </div>
 
-      {/* Input Bar */}
-      <div className="bg-[#FFFEF5] dark:bg-[#0D0D0D] border-t border-[#C6C6C8] dark:border-gray-800 p-2 pb-[env(safe-area-inset-bottom)] shrink-0 z-10">
-        <div className="flex items-end px-2">
+      {/* Input Bar Layer */}
+      <div className="relative bg-[#FFFEF5] dark:bg-[#0D0D0D] border-t border-[#C6C6C8] dark:border-gray-800 p-2 pb-[env(safe-area-inset-bottom)] shrink-0 z-10 w-full">
+        
+        {/* GIF Picker Panel (positioned absolute above the input bar) */}
+        {showGifPicker && (
+          <div className="absolute bottom-[100%] left-0 w-full h-[300px] bg-[#FFFEF5] dark:bg-[#0D0D0D] border-t border-[#C6C6C8] dark:border-gray-800 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] flex flex-col z-20">
+            <div className="p-3 border-b border-[#C6C6C8] dark:border-gray-800 shrink-0">
+              <input
+                type="text"
+                placeholder="Поиск гифок..."
+                value={gifSearch}
+                onChange={(e) => setGifSearch(e.target.value)}
+                autoFocus
+                className="w-full bg-[#E5E5EA] dark:bg-[#1C1C1E] rounded-[10px] px-3 py-2 text-[15px] outline-none text-black dark:text-white placeholder:text-[#8E8E93]"
+              />
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {isGifsLoading ? (
+                <div className="text-center text-[#8E8E93] text-[13px] mt-4">Загрузка...</div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {gifs.map((gif) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={gif.id}
+                      src={gif.images.fixed_height.url}
+                      alt={gif.title || "gif"}
+                      className="w-full h-[120px] object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => handleSendGif(gif.images.fixed_height.url)}
+                      loading="lazy"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-end px-2 pt-1">
           <div className="flex-1 bg-[#F2F2F7] dark:bg-[#1C1C1E] rounded-[20px] min-h-[40px] flex items-center pr-2 pl-3">
-            <button className="text-[#E4AF0A] mr-2 flex-shrink-0 flex items-center justify-center">
+            <button 
+              onClick={() => setShowGifPicker(!showGifPicker)}
+              className="text-[#E4AF0A] mr-2 flex-shrink-0 flex items-center justify-center p-1 cursor-pointer transition-opacity hover:opacity-80"
+            >
               <Smile size={24} strokeWidth={1.5} />
             </button>
             <input
@@ -203,8 +293,8 @@ export function ChatClient({ initialMessages, conversationId, userId, otherUserN
             />
             {inputText.trim() && (
               <button
-                onClick={handleSend}
-                className="text-[#E4AF0A] ml-2 flex-shrink-0 flex items-center justify-center p-1"
+                onClick={handleSendText}
+                className="text-[#E4AF0A] ml-2 flex-shrink-0 flex items-center justify-center p-1 cursor-pointer transition-opacity hover:opacity-80"
               >
                 <div className="w-7 h-7 rounded-full flex mx-auto items-center justify-center bg-transparent">
                   <Send size={22} strokeWidth={2} />

@@ -10,6 +10,9 @@ interface MessageBubbleProps {
 export function MessageBubble({ content, isSent, timestamp, showTimestamp, senderLabel, showSender }: MessageBubbleProps) {
   const displayTime = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  const isGif = content.startsWith('giphy:');
+  const gifUrl = isGif ? content.substring(6) : '';
+
   return (
     <div className="flex flex-col w-full mb-1">
       {showTimestamp && (
@@ -33,7 +36,17 @@ export function MessageBubble({ content, isSent, timestamp, showTimestamp, sende
         }`}
         style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
       >
-        {content}
+        {isGif ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img 
+            src={gifUrl} 
+            alt="GIF" 
+            className="max-w-[200px] w-full rounded-[12px] my-1 object-cover" 
+            loading="lazy"
+          />
+        ) : (
+          content
+        )}
       </div>
     </div>
   );
