@@ -28,51 +28,28 @@ export function NewConversationModal({ userId }: { userId: string }) {
     e.preventDefault();
     setErrorMsg('');
     if (!email.trim()) return;
-    
     setLoading(true);
 
-    // 1. Get recipient ID by email
-    const { data: recipientId, error: rpcError } = await supabase
-      .rpc('get_user_id_by_email', { user_email: email });
+    const { data: convId, error } = await supabase
+      .rpc('create_conversation', {
+        recipient_email: email,
+        current_user_id: userId
+      });
 
-    if (rpcError || !recipientId) {
-      setErrorMsg('Пользователь не найден');
+    if (error || !convId) {
+      if (error?.message?.includes('User not found')) {
+        setErrorMsg('Пользователь не найден');
+      } else {
+        setErrorMsg('Ошибка создания');
+      }
       setLoading(false);
       return;
     }
-    
-    // 2. Create a new conversation row
-    const { data: convData, error: convError } = await supabase
-      .from('conversations')
-      .insert({ name: email })
-      .select()
-      .single();
-      
-    if (convError || !convData) {
-      console.error('Error creating conversation:', convError);
-      setErrorMsg('Ошибка создания');
-      setLoading(false);
-      return;
-    }
-    
-    // 3. Insert both users as participants
-    const { error: partError } = await supabase
-      .from('participants')
-      .insert([
-        { conversation_id: convData.id, user_id: userId },
-        { conversation_id: convData.id, user_id: recipientId }
-      ]);
-      
-    if (partError) {
-      console.error('Error adding participants:', partError);
-    }
-    
+
     setLoading(false);
     setIsOpen(false);
     setEmail('');
-    
-    // Redirect to the new chat
-    router.push(`/chat/${convData.id}`);
+    router.push(`/chat/${convId}`);
   };
 
   return (
